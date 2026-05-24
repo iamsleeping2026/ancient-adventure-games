@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>打怪 RPG 進階版</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-bg: #16213e;
+            --text-color: #e94560;
+            --text-light: #fff;
+            --coin-color: #f9a826;
+            --hp-green: #4caf50;
+            --hp-yellow: #ffeb3b;
+            --hp-red: #f44336;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        .back-btn {
+            position: fixed; top: 12px; left: 15px; z-index: 9999;
+            background: rgba(0,0,0,0.7);
+            color: #aaa;
+            border: 1px solid #555;
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .back-btn:hover { background: rgba(233,69,96,0.3); border-color: #e94560; color: #e94560; }
+
+        #app {
+            width: 100%; max-width: 600px;
+            height: 100vh;
+            position: relative;
+            display: flex; flex-direction: column;
+            background: var(--panel-bg);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .screen {
+            display: none; flex-direction: column;
+            width: 100%; height: 100%;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .screen.active { display: flex; }
+
+        /* Loading & Messages */
+        .center-msg { text-align: center; margin: auto; font-size: 1.5rem; }
+        
+        /* Top Bar */
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .hp-container { flex: 1; margin-right: 15px; }
+        .hp-label { font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        .hp-bar-bg { width: 100%; height: 15px; background: #333; border-radius: 8px; overflow: hidden; border: 1px solid #000; }
+        .hp-bar-fill { height: 100%; background: var(--hp-green); transition: width 0.3s, background-color 0.3s; }
+        
+        .coins { font-size: 1.5rem; color: var(--coin-color); font-weight: bold; display: flex; align-items: center; }
+        .coins span { margin-left: 5px; transition: transform 0.2s; display: inline-block; }
+
+        /* Battle Area */
+        .battle-stage {
+            display: flex; justify-content: space-around; align-items: flex-end;
+            flex: 1; min-height: 250px; position: relative; padding-bottom: 20px;
+        }
+        
+        .character {
+            display: flex; flex-direction: column; align-items: center;
+            font-size: 4rem; position: relative;
+        }
+
+        .monster-hp { width: 100%; max-width: 80px; margin-bottom: 10px; }
+
+        .speech-bubble {
+            position: absolute; top: 10px; left: 5%; width: 90%;
+            background: #fff; color: #000; padding: 15px;
+            border-radius: 10px; font-weight: bold; font-size: 1.1rem;
+            text-align: center; border: 3px solid var(--text-color);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .speech-bubble::after {
+            content: ''; position: absolute; bottom: -10px; right: 20%;
+            border-width: 10px 10px 0; border-style: solid;
+            border-color: #fff transparent; display: block; width: 0;
+        }
+
+        /* Options */
+        .options-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            margin-bottom: 20px;
+        }
+        .option-btn {
+            background: #2a3eb1; color: white; border: none; padding: 15px;
+            border-radius: 8px; font-size: 1.1rem; cursor: pointer;
+            box-shadow: 0 4px 0 #1a237e; transition: all 0.1s;
+        }
+        .option-btn:active { transform: translateY(4px); box-shadow: 0 0 0 #1a237e; }
+        .option-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        /* Actions */
+        .actions-bar { display: flex; justify-content: flex-end; padding-bottom: 10px; }
+        .bag-btn { background: #8e44ad; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 1.2rem; cursor: pointer; font-weight: bold;}
+
+        /* Modals */
+        .modal {
+            display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8); z-index: 100;
+            justify-content: center; align-items: center; flex-direction: column;
+            padding: 20px;
+        }
+        .modal-content {
+            background: #fff; color: #000; padding: 20px; border-radius: 10px;
+            width: 100%; max-width: 400px; text-align: center;
+        }
+        .modal h2 { margin-top: 0; color: var(--text-color); }
+        .close-btn, .action-btn {
+            background: var(--text-color); color: white; border: none; padding: 10px 20px;
+            border-radius: 5px; cursor: pointer; font-size: 1.1rem; margin-top: 15px;
+        }
+        
+        .inventory-list { text-align: left; margin: 15px 0; }
+        .inv-item { display: flex; justify-content: space-between; padding: 10px; background: #eee; margin-bottom: 5px; border-radius: 5px; align-items: center; }
+        .use-btn { background: #4caf50; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+
+        /* Shop */
+        .shop-bg { background-image: linear-gradient(#8b5a2b, #a0522d); height: 100%; display: flex; flex-direction: column; padding: 20px;}
+        .shop-header { text-align: center; font-size: 2rem; color: #ffd700; text-shadow: 2px 2px 0 #000; margin-bottom: 20px;}
+        .shop-items { display: flex; flex-direction: column; gap: 10px; flex: 1;}
+        .shop-card { background: #fffde7; color: #333; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 2px solid #8b4513; }
+        .buy-btn { background: #f9a826; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .buy-btn:disabled { background: #ccc; }
+
+        /* Animations & Effects */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shake { animation: shake 0.3s; }
+
+        @keyframes bump { 50% { transform: scale(1.5); color: #fff; } }
+        .coin-bump { animation: bump 0.2s; }
+
+        @keyframes blink { 50% { opacity: 0.3; } }
+        .hp-low { animation: blink 0.5s infinite; }
+
+        .dmg-text {
+            position: absolute; color: red; font-weight: bold; font-size: 2rem;
+            animation: floatUp 1s forwards; text-shadow: 2px 2px 0 #fff; z-index: 20; pointer-events: none;
+        }
+        .heal-text { color: #4caf50; font-size: 2rem; position: absolute; animation: floatUp 1s forwards; text-shadow: 2px 2px 0 #fff; z-index: 20; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
+
+        .critical-text { position: absolute; color: #ffeb3b; font-size: 3rem; font-weight: bold; text-shadow: 2px 2px red; z-index: 30; animation: scaleIn 1s forwards; pointer-events: none;}
+        @keyframes scaleIn { 0% { transform: scale(0); opacity: 1; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+
+    </style>
+</head>
+<body>
+
+<a class="back-btn" href="../大冒險地圖/index.html">← 回到大地圖</a>
+<div id="app">
+    <!-- Loading Screen -->
+    <div id="screen-loading" class="screen active">
+        <div class="center-msg">
+            <h2>📜 讀取魔法卷軸中...</h2>
+            <p>正在載入題庫</p>
+        </div>
+    </div>
+
+    <!-- Battle Screen -->
+    <div id="screen-battle" class="screen">
+        <div class="top-bar">
+            <div class="hp-container">
+                <div class="hp-label">我方 HP <span id="player-hp-txt">100/100</span></div>
+                <div class="hp-bar-bg">
+                    <div id="player-hp-fill" class="hp-bar-fill"></div>
+                </div>
+            </div>
+            <div class="coins">💰 <span id="coin-counter">0</span></div>
+        </div>
+
+        <div class="speech-bubble" id="question-text">題目載入中...</div>
+
+        <div class="battle-stage" id="battle-stage">
+            <div class="character">
+                🧙
+                <div id="player-dmg-anchor" style="position:absolute; top:-20px;"></div>
+            </div>
+            <div class="character" id="monster-char">
+                <div class="hp-container monster-hp">
+                    <div class="hp-bar-bg"><div id="monster-hp-fill" class="hp-bar-fill"></div></div>
+                </div>
+                <span id="monster-icon">🐺</span>
+                <div id="monster-dmg-anchor" style="position:absolute; top:-20px;"></div>
+            </div>
+        </div>
+
+        <div class="options-grid" id="options-container">
+            <!-- Buttons injected here -->
+        </div>
+
+        <div class="actions-bar">
+            <button class="bag-btn" onclick="openBag()">🎒 背包</button>
+        </div>
+    </div>
+
+    <!-- Shop Screen -->
+    <div id="screen-shop" class="screen shop-bg">
+        <div class="shop-header">神秘商店</div>
+        <div class="center-msg" style="margin: 0 0 20px 0; font-size: 1.2rem; color: #fff;">
+            目前金幣: 💰 <span id="shop-coins">0</span>
+        </div>
+        <div class="shop-items">
+            <div class="shop-card">
+                <div>🧪 紅藥水 (補50 HP)<br><small>30 金幣</small></div>
+                <button class="buy-btn" onclick="buyItem('potion', 30)">購買</button>
+            </div>
+            <div class="shop-card">
+                <div>💎 攻擊水晶 (下題暴擊 -50HP)<br><small>40 金幣</small></div>
+                <button class="buy-btn" onclick="buyItem('crystal', 40)">購買</button>
+            </div>
+            <div class="shop-card">
+                <div>🛡 救命符 (死亡復活留1滴血)<br><small>80 金幣</small></div>
+                <button class="buy-btn" onclick="buyItem('lifeSaver', 80)">購買</button>
+            </div>
+        </div>
+        <button class="action-btn" onclick="startNextLevel()" style="align-self: center; background: #e94560;">進入下一關 🗡️</button>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="screen-result" class="screen">
+        <div class="center-msg">
+            <h1 id="result-title">🎉 通關成功！</h1>
+            <div style="font-size: 1.2rem; margin: 20px 0; text-align: left; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px;">
+                <p>答對題數： <span id="res-correct">0</span></p>
+                <p>最終金幣： 💰 <span id="res-coins">0</span></p>
+                <p>使用紅藥水： <span id="res-potions">0</span> 瓶</p>
+            </div>
+            <button class="action-btn" onclick="location.reload()">再玩一次</button>
+        </div>
+    </div>
+
+    <!-- Bag Modal -->
+    <div id="modal-bag" class="modal">
+        <div class="modal-content">
+            <h2>🎒 你的背包</h2>
+            <div class="inventory-list">
+                <div class="inv-item">
+                    <span>🧪 紅藥水 (x<span id="inv-potion">0</span>)</span>
+                    <button class="use-btn" onclick="usePotion()">使用</button>
+                </div>
+                <div class="inv-item">
+                    <span>💎 攻擊水晶 (x<span id="inv-crystal">0</span>)</span>
+                    <small>戰鬥自動消耗</small>
+                </div>
+                <div class="inv-item">
+                    <span>🛡 救命符 (x<span id="inv-lifeSaver">0</span>)</span>
+                    <small>死亡自動消耗</small>
+                </div>
+            </div>
+            <button class="close-btn" onclick="closeBag()">關閉</button>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="modal-alert" class="modal" style="z-index: 200;">
+        <div class="modal-content">
+            <h2 id="alert-title">提示</h2>
+            <p id="alert-msg"></p>
+            <button class="close-btn" onclick="closeAlert()">確定</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ORIGINAL_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPKJx9XlWb0CnM1CIl_V9nbVTOl8XnYyOx1inwxX2IWyrKpOVVGPfM3X9J3UHkDmnUJ4VxCPd7Knf7/pub?output=csv';
+    const GS_CSV_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ORIGINAL_CSV_URL);
+
+    const fallbackQuestions = [
+        {q: "哪一個是質數？", a: "2", w1: "4", w2: "6", w3: "8"},
+        {q: "水是由什麼組成？", a: "氫和氧", w1: "氫和碳", w2: "氧和氮", w3: "氮和碳"},
+        {q: "地球是哪一類星體？", a: "行星", w1: "恆星", w2: "衛星", w3: "彗星"},
+        {q: "太陽系最大的行星是？", a: "木星", w1: "土星", w2: "地球", w3: "火星"},
+        {q: "人體最大的器官是？", a: "皮膚", w1: "肝臟", w2: "心臟", w3: "大腦"},
+        {q: "光速約為每秒幾萬公里？", a: "30", w1: "15", w2: "45", w3: "60"}
+    ];
+
+    const gameState = {
+        player: { hp: 100, maxHp: 100, coins: 0 },
+        inventory: { potion: 0, crystal: 0, lifeSaver: 0 },
+        level: 0, // 0 to 4
+        monsters: [
+            { name: '門德烈夫', icon: '🐺', hp: 100, maxHp: 100 },
+            { name: '莫色勒', icon: '🦂', hp: 100, maxHp: 100 },
+            { name: '惡鬼', icon: '👹', hp: 100, maxHp: 100 },
+            { name: '巨龍', icon: '🐲', hp: 100, maxHp: 100 },
+            { name: '魔王', icon: '👑', hp: 100, maxHp: 100 }
+        ],
+        questions: [],
+        usedPotions: 0,
+        correctAnswers: 0,
+        alertCallback: null
+    };
+
+    let currentQuestionData = null;
+    let battleLock = false;
+
+    // --- Helpers ---
+    function $(id) { return document.getElementById(id); }
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        $(id).classList.add('active');
+    }
+
+    // --- Initialization ---
+    window.onload = async () => {
+        await fetchQuestions();
+        startNextLevel();
+    };
+
+    async function fetchQuestions() {
+        try {
+            const res = await fetch(GS_CSV_URL);
+            if (!res.ok) throw new Error('Network error');
+            const text = await res.text();
+            parseCSV(text);
+        } catch (err) {
+            console.warn("CSV Fetch failed, using fallback", err);
+            useFallback();
+        }
+    }
+
+    function parseCSV(text) {
+        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+        const data = [];
+        for (let i = 1; i < lines.length; i++) {
+            let row = lines[i];
+            let cols = []; let cur = ''; let inQuotes = false;
+            for(let j=0; j<row.length; j++) {
+                if(row[j] === '"') inQuotes = !inQuotes;
+                else if(row[j] === ',' && !inQuotes) { cols.push(cur); cur = ''; }
+                else cur += row[j];
+            }
+            cols.push(cur);
+            
+            if (cols.length >= 2) {
+                let options = [{text: cols[1].trim(), isCorrect: true}];
+                if (cols[2] && cols[2].trim()) options.push({text: cols[2].trim(), isCorrect: false});
+                if (cols[3] && cols[3].trim()) options.push({text: cols[3].trim(), isCorrect: false});
+                if (cols[4] && cols[4].trim()) options.push({text: cols[4].trim(), isCorrect: false});
+                data.push({ text: cols[0].trim(), options: options });
+            }
+        }
+        gameState.questions = data.length > 0 ? data : useFallback(true);
+    }
+
+    function useFallback(ret = false) {
+        let qs = fallbackQuestions.map(q => ({
+            text: q.q,
+            options: [
+                {text: q.a, isCorrect: true},
+                {text: q.w1, isCorrect: false},
+                {text: q.w2, isCorrect: false},
+                {text: q.w3, isCorrect: false}
+            ].filter(o => o.text !== '')
+        }));
+        if(ret) return qs;
+        gameState.questions = qs;
+    }
+
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    // --- Battle Logic ---
+    function startNextLevel() {
+        if (gameState.level >= 5) {
+            showResult(true);
+            return;
+        }
+        
+        let m = gameState.monsters[gameState.level];
+        m.hp = m.maxHp;
+        
+        $('monster-icon').textContent = m.icon;
+        
+        updateUI();
+        showScreen('screen-battle');
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        if (gameState.questions.length === 0) useFallback();
+        let qIndex = Math.floor(Math.random() * gameState.questions.length);
+        currentQuestionData = gameState.questions[qIndex];
+        
+        $('question-text').textContent = currentQuestionData.text;
+        
+        let opts = shuffle([...currentQuestionData.options]);
+        let ctn = $('options-container');
+        ctn.innerHTML = '';
+        opts.forEach((opt) => {
+            let btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = opt.text;
+            btn.onclick = () => handleAnswer(opt, btn);
+            ctn.appendChild(btn);
+        });
+        battleLock = false;
+    }
+
+    function handleAnswer(opt, btnElement) {
+        if (battleLock) return;
+        battleLock = true;
+        
+        // Disable buttons
+        document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+
+        if (opt.isCorrect) {
+            // Correct
+            gameState.correctAnswers++;
+            addCoins(5);
+            document.body.style.backgroundColor = 'rgba(76, 175, 80, 0.3)';
+            setTimeout(() => document.body.style.backgroundColor = '', 200);
+
+            let dmg = 25;
+            let isCrit = false;
+            if (gameState.inventory.crystal > 0) {
+                dmg = 50;
+                gameState.inventory.crystal--;
+                isCrit = true;
+                showCritEffect();
+            }
+            
+            showFloatingText('-' + dmg, 'monster-dmg-anchor', 'red');
+            let m = gameState.monsters[gameState.level];
+            m.hp = Math.max(0, m.hp - dmg);
+            updateUI();
+
+            setTimeout(() => {
+                if (m.hp <= 0) {
+                    monsterDefeated();
+                } else {
+                    nextQuestion();
+                }
+            }, 1000);
+
+        } else {
+            // Wrong
+            $('app').classList.add('shake');
+            document.body.style.backgroundColor = 'rgba(244, 67, 54, 0.3)';
+            setTimeout(() => {
+                $('app').classList.remove('shake');
+                document.body.style.backgroundColor = '';
+            }, 300);
+
+            // highlight correct
+            document.querySelectorAll('.option-btn').forEach(b => {
+                let correctOpt = currentQuestionData.options.find(o => o.isCorrect);
+                if(b.textContent === correctOpt.text) {
+                    b.style.backgroundColor = '#4caf50';
+                }
+            });
+
+            showFloatingText('-25', 'player-dmg-anchor', 'red');
+            gameState.player.hp -= 25;
+            
+            setTimeout(() => {
+                checkPlayerDeath();
+            }, 2000); // Show correct answer for 2s
+        }
+    }
+
+    function monsterDefeated() {
+        let m = gameState.monsters[gameState.level];
+        let extraCoins = Math.floor(Math.random() * 31) + 20; // 20-50
+        addCoins(extraCoins);
+        
+        showAlert(`擊敗 ${m.name}！`, `掉落了 ${extraCoins} 枚金幣！`, () => {
+            gameState.level++;
+            if (gameState.level >= 5) {
+                showResult(true);
+            } else {
+                openShop();
+            }
+        });
+    }
+
+    function checkPlayerDeath() {
+        if (gameState.player.hp <= 0) {
+            if (gameState.inventory.lifeSaver > 0) {
+                gameState.inventory.lifeSaver--;
+                gameState.player.hp = 1;
+                showAlert('🛡 救命符發動！', '你在千鈞一髮之際復活了！', () => {
+                    updateUI();
+                    nextQuestion();
+                });
+            } else {
+                // Die
+                if (gameState.player.hp < 0 && document.getElementById('player-hp-txt').innerText.includes('1/100')) {
+                    // Was already 1 and died
+                    gameOver();
+                } else {
+                    gameState.player.hp = 1;
+                    showAlert('💀 戰敗！', '你被打倒了，退回 1 滴血重新挑戰本關。', () => {
+                        let m = gameState.monsters[gameState.level];
+                        m.hp = m.maxHp;
+                        updateUI();
+                        nextQuestion();
+                    });
+                }
+            }
+        } else {
+            updateUI();
+            nextQuestion();
+        }
+    }
+
+    function gameOver() {
+        document.body.style.backgroundColor = '#8b0000';
+        $('screen-battle').style.display = 'none';
+        $('result-title').textContent = '💀 遊戲結束';
+        $('result-title').style.color = 'red';
+        showResult(false);
+    }
+
+    function updateUI() {
+        let p = gameState.player;
+        $('player-hp-txt').textContent = `${Math.max(0, p.hp)}/${p.maxHp}`;
+        let pRatio = Math.max(0, p.hp) / p.maxHp;
+        let pFill = $('player-hp-fill');
+        pFill.style.width = (pRatio * 100) + '%';
+        pFill.style.backgroundColor = pRatio > 0.5 ? 'var(--hp-green)' : (pRatio > 0.2 ? 'var(--hp-yellow)' : 'var(--hp-red)');
+        
+        if (pRatio <= 0.2 && pRatio > 0) pFill.classList.add('hp-low');
+        else pFill.classList.remove('hp-low');
+
+        $('coin-counter').textContent = p.coins;
+
+        if (gameState.level < 5) {
+            let m = gameState.monsters[gameState.level];
+            let mRatio = Math.max(0, m.hp) / m.maxHp;
+            let mFill = $('monster-hp-fill');
+            mFill.style.width = (mRatio * 100) + '%';
+            mFill.style.backgroundColor = mRatio > 0.5 ? 'var(--hp-green)' : (mRatio > 0.2 ? 'var(--hp-yellow)' : 'var(--hp-red)');
+        }
+        
+        // Update bag counters
+        $('inv-potion').textContent = gameState.inventory.potion;
+        $('inv-crystal').textContent = gameState.inventory.crystal;
+        $('inv-lifeSaver').textContent = gameState.inventory.lifeSaver;
+        
+        $('shop-coins').textContent = p.coins;
+    }
+
+    function addCoins(amount) {
+        gameState.player.coins += amount;
+        let c = $('coin-counter');
+        c.classList.add('coin-bump');
+        setTimeout(() => c.classList.remove('coin-bump'), 200);
+        updateUI();
+    }
+
+    function showFloatingText(txt, anchorId, color) {
+        let el = document.createElement('div');
+        el.className = color === 'red' ? 'dmg-text' : 'heal-text';
+        el.textContent = txt;
+        $(anchorId).appendChild(el);
+        setTimeout(() => el.remove(), 1000);
+    }
+
+    function showCritEffect() {
+        let el = document.createElement('div');
+        el.className = 'critical-text';
+        el.textContent = 'CRITICAL!';
+        $('monster-dmg-anchor').appendChild(el);
+        setTimeout(() => el.remove(), 1000);
+    }
+
+    // --- Modals & Shop ---
+    function showAlert(title, msg, callback) {
+        $('alert-title').textContent = title;
+        $('alert-msg').textContent = msg;
+        $('modal-alert').style.display = 'flex';
+        gameState.alertCallback = callback;
+    }
+    function closeAlert() {
+        $('modal-alert').style.display = 'none';
+        if (gameState.alertCallback) gameState.alertCallback();
+    }
+
+    function openBag() {
+        updateUI();
+        $('modal-bag').style.display = 'flex';
+    }
+    function closeBag() {
+        $('modal-bag').style.display = 'none';
+    }
+    
+    function usePotion() {
+        if (gameState.inventory.potion > 0 && gameState.player.hp < gameState.player.maxHp) {
+            gameState.inventory.potion--;
+            gameState.usedPotions++;
+            gameState.player.hp = Math.min(gameState.player.maxHp, gameState.player.hp + 50);
+            showFloatingText('+50', 'player-dmg-anchor', 'green');
+            updateUI();
+        }
+    }
+
+    function openShop() {
+        updateUI();
+        showScreen('screen-shop');
+        checkShopButtons();
+    }
+
+    function buyItem(item, cost) {
+        if (gameState.player.coins >= cost) {
+            gameState.player.coins -= cost;
+            gameState.inventory[item]++;
+            updateUI();
+            checkShopButtons();
+        }
+    }
+
+    function checkShopButtons() {
+        let btns = document.querySelectorAll('.shop-card .buy-btn');
+        let costs = [30, 40, 80];
+        btns.forEach((b, i) => {
+            b.disabled = gameState.player.coins < costs[i];
+        });
+    }
+
+    function showResult(isWin) {
+        if (isWin) localStorage.setItem('cert_warrior', '1');
+        $('res-correct').textContent = gameState.correctAnswers;
+        $('res-coins').textContent = gameState.player.coins;
+        $('res-potions').textContent = gameState.usedPotions;
+        showScreen('screen-result');
+    }
+
+</script>
+</body>
+</html>

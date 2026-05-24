@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>成語填字遊戲</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f4e9d8;
+            --text-color: #2c2c2c;
+            --red-color: #b22222;
+            --border-color: #8b7355;
+            --card-bg: #fffcf0;
+            --success-color: #2e8b57;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Serif TC', serif;
+            background-color: var(--bg-color);
+            background-image: url('data:image/svg+xml;utf8,<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" stitchTiles="stitch"/></filter><rect width="200" height="200" filter="url(%23noise)" opacity="0.08"/></svg>');
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            touch-action: none; /* 防止平板拖曳時畫面捲動 */
+            overflow: hidden;
+        }
+
+        .back-btn {
+            position: fixed; top: 12px; left: 15px; z-index: 999;
+            background: rgba(0,0,0,0.4);
+            color: var(--border-color);
+            border: 1px solid var(--border-color);
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: rgba(139,115,85,0.3); }
+
+        header {
+            width: 100%;
+            text-align: center;
+            padding: 15px 0;
+            background: rgba(255,255,255,0.3);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+            color: var(--red-color);
+            letter-spacing: 5px;
+        }
+
+        .stats {
+            font-size: 1.2rem;
+            color: var(--border-color);
+            font-weight: bold;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* 題目區 */
+        .idiom-display {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .char-box {
+            width: 80px;
+            height: 80px;
+            font-size: 3rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid transparent;
+            font-weight: bold;
+        }
+
+        .char-box.static {
+            color: var(--text-color);
+        }
+
+        .char-box.drop-zone {
+            border: 2px dashed var(--red-color);
+            background-color: rgba(178,34,34,0.05);
+            /* 米字格效果背景 */
+            background-image: 
+                linear-gradient(to bottom, transparent 49%, rgba(178,34,34,0.2) 49%, rgba(178,34,34,0.2) 51%, transparent 51%),
+                linear-gradient(to right, transparent 49%, rgba(178,34,34,0.2) 49%, rgba(178,34,34,0.2) 51%, transparent 51%),
+                linear-gradient(45deg, transparent 49.5%, rgba(178,34,34,0.2) 49.5%, rgba(178,34,34,0.2) 50.5%, transparent 50.5%),
+                linear-gradient(-45deg, transparent 49.5%, rgba(178,34,34,0.2) 49.5%, rgba(178,34,34,0.2) 50.5%, transparent 50.5%);
+            position: relative;
+        }
+        
+        .char-box.drop-zone.filled {
+            border-style: solid;
+            background-image: none;
+            background-color: transparent;
+            color: var(--red-color); /* 答對像紅章 */
+        }
+
+        /* 訊息區 */
+        .message-area {
+            min-height: 80px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .meaning {
+            font-size: 1.2rem;
+            color: var(--text-color);
+            background: rgba(255,255,255,0.6);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid var(--red-color);
+            display: none;
+        }
+
+        .next-btn {
+            display: none;
+            margin: 15px auto;
+            padding: 10px 30px;
+            font-size: 1.2rem;
+            font-family: inherit;
+            background-color: var(--red-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        .next-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 字卡區 */
+        .cards-area {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .cards-area {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 10px;
+            }
+            .char-box {
+                width: 60px;
+                height: 60px;
+                font-size: 2.2rem;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: grab;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.15);
+            user-select: none;
+            position: relative;
+            z-index: 10;
+        }
+
+        .card.dragging {
+            z-index: 1000;
+            opacity: 0.9;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
+            pointer-events: none; /* 讓 pointerup 可以偵測到底下的元素 */
+            cursor: grabbing;
+        }
+        
+        .card.used {
+            visibility: hidden;
+        }
+
+        /* 動畫 */
+        @keyframes flashRed {
+            0% { transform: translateX(0); background-color: var(--card-bg); }
+            25% { transform: translateX(-5px); background-color: #ffcccc; }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); background-color: var(--card-bg); }
+        }
+        .error {
+            animation: flashRed 0.2s;
+        }
+
+        /* 結束畫面 */
+        #result-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(244, 233, 216, 0.95);
+            z-index: 2000;
+        }
+
+        .result-box {
+            text-align: center;
+            background: #fff;
+            padding: 40px;
+            border: 3px solid var(--red-color);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+    </style>
+</head>
+<body>
+
+    <a class="back-btn" href="../大冒險地圖/index.html">← 回到大地圖</a>
+    <header>
+        <h1>成語填字</h1>
+        <div class="stats">第 <span id="current-q">1</span> / 5 題</div>
+    </header>
+
+    <div class="container" id="game-screen">
+        <div class="idiom-display" id="idiom-display">
+            <!-- 動態產生 -->
+        </div>
+
+        <div class="message-area">
+            <div class="meaning" id="meaning-box">
+                <strong style="color: var(--success-color);">✓ 答對！</strong><br>
+                <span id="meaning-text"></span>
+            </div>
+            <button class="next-btn" id="next-btn" onclick="nextQuestion()">下一題</button>
+        </div>
+
+        <div class="cards-area" id="cards-area">
+            <!-- 字卡動態產生 -->
+        </div>
+    </div>
+
+    <div id="result-screen">
+        <div class="result-box">
+            <h1 style="margin-bottom: 20px;">恭喜完成！</h1>
+            <p style="font-size: 1.5rem;">你已經完成 5 題成語挑戰！</p>
+            <button class="next-btn" style="display:inline-block; margin-top:20px;" onclick="initGame()">重新挑戰</button>
+        </div>
+    </div>
+
+    <script>
+        const QUESTIONS = [
+            { 成語: '一鳴驚人', 缺字: [1, 2], 答案: ['鳴', '驚'], 意思: '比喻平時默默無聞，突然有驚人表現。' },
+            { 成語: '風花雪月', 缺字: [1, 3], 答案: ['花', '月'], 意思: '原指四時景色，後比喻浮華空洞的詩文。' },
+            { 成語: '三番五次', 缺字: [1, 3], 答案: ['番', '次'], 意思: '形容次數很多。' },
+            { 成語: '一字千金', 缺字: [1, 3], 答案: ['字', '金'], 意思: '形容文字價值極高。' },
+            { 成語: '畫龍點睛', 缺字: [1, 3], 答案: ['龍', '睛'], 意思: '比喻在關鍵處點明要旨。' },
+            { 成語: '守株待兔', 缺字: [1, 3], 答案: ['株', '兔'], 意思: '比喻拘泥守成，不知變通；或妄想不勞而獲。' },
+            { 成語: '拔苗助長', 缺字: [1, 3], 答案: ['苗', '長'], 意思: '比喻為求速成而未顧及事物發展的客觀規律，反而有害。' },
+            { 成語: '亡羊補牢', 缺字: [1, 3], 答案: ['羊', '牢'], 意思: '比喻犯錯後及時更正，尚能補救。' },
+            { 成語: '杯弓蛇影', 缺字: [1, 3], 答案: ['弓', '影'], 意思: '比喻因無中生有的疑慮自相驚擾。' },
+            { 成語: '對牛彈琴', 缺字: [1, 3], 答案: ['牛', '琴'], 意思: '比喻對不懂道理的人講道理。' },
+            { 成語: '狐假虎威', 缺字: [1, 3], 答案: ['假', '威'], 意思: '比喻憑恃別人的威勢來欺壓人。' },
+            { 成語: '自相矛盾', 缺字: [1, 3], 答案: ['相', '盾'], 意思: '比喻言語或行為前後不一致。' }
+        ];
+
+        const DISTRACTORS = '天地玄黃宇宙洪荒日月盈昃辰宿列張寒來暑往秋收冬藏閏餘成歲律呂調陽雲騰致雨露結為霜金生麗水玉出崑岡劍號巨闕珠稱夜光果珍李柰菜重芥薑海咸河淡鱗潛羽翔';
+
+        let currentRound = 0;
+        let selectedQuestions = [];
+        let filledCount = 0;
+        
+        // 拖曳相關變數
+        let dragEl = null;
+        let startX = 0, startY = 0;
+        let originalRect = null;
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function playSuccessSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+                osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1); 
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            } catch(e) {
+                console.log("Audio not supported or blocked");
+            }
+        }
+
+        function initGame() {
+            selectedQuestions = shuffle([...QUESTIONS]).slice(0, 5);
+            currentRound = 0;
+            document.getElementById('result-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            filledCount = 0;
+            document.getElementById('current-q').textContent = currentRound + 1;
+            document.getElementById('meaning-box').style.display = 'none';
+            document.getElementById('next-btn').style.display = 'none';
+            
+            const q = selectedQuestions[currentRound];
+            
+            // 繪製題目區
+            const display = document.getElementById('idiom-display');
+            display.innerHTML = '';
+            
+            for (let i = 0; i < 4; i++) {
+                const box = document.createElement('div');
+                if (q.缺字.includes(i)) {
+                    box.className = 'char-box drop-zone';
+                    box.dataset.index = i;
+                    box.dataset.answer = q.成語[i];
+                } else {
+                    box.className = 'char-box static';
+                    box.textContent = q.成語[i];
+                }
+                display.appendChild(box);
+            }
+
+            // 準備字卡 (2 正確 + 13 干擾)
+            let cards = [...q.答案];
+            let distractorArr = shuffle(DISTRACTORS.split(''));
+            for(let i=0; i<13; i++) {
+                cards.push(distractorArr[i]);
+            }
+            cards = shuffle(cards);
+
+            // 繪製字卡區
+            const cardsArea = document.getElementById('cards-area');
+            cardsArea.innerHTML = '';
+            
+            cards.forEach(char => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.textContent = char;
+                card.dataset.char = char;
+                
+                // 綁定指標事件 (支援滑鼠與觸控)
+                card.addEventListener('pointerdown', handlePointerDown);
+                
+                cardsArea.appendChild(card);
+            });
+        }
+
+        // ================= 拖曳邏輯 =================
+
+        function handlePointerDown(e) {
+            if (e.button !== 0 && e.type === 'pointerdown' && e.pointerType === 'mouse') return; // 只允許左鍵
+            
+            dragEl = this;
+            originalRect = dragEl.getBoundingClientRect();
+            
+            // 設定固定大小，避免脫離 grid 後變形
+            dragEl.style.width = originalRect.width + 'px';
+            dragEl.style.height = originalRect.height + 'px';
+            
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            dragEl.classList.add('dragging');
+            
+            // 將元素改為 fixed 定位並對齊原位置
+            dragEl.style.position = 'fixed';
+            dragEl.style.left = originalRect.left + 'px';
+            dragEl.style.top = originalRect.top + 'px';
+            dragEl.style.margin = '0';
+            
+            // 防止瀏覽器預設行為 (例如反白文字)
+            e.preventDefault();
+            dragEl.setPointerCapture(e.pointerId);
+
+            dragEl.addEventListener('pointermove', handlePointerMove);
+            dragEl.addEventListener('pointerup', handlePointerUp);
+            dragEl.addEventListener('pointercancel', handlePointerUp);
+        }
+
+        function handlePointerMove(e) {
+            if (!dragEl) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            dragEl.style.transform = `translate(${dx}px, ${dy}px)`;
+        }
+
+        function handlePointerUp(e) {
+            if (!dragEl) return;
+            
+            dragEl.releasePointerCapture(e.pointerId);
+            dragEl.removeEventListener('pointermove', handlePointerMove);
+            dragEl.removeEventListener('pointerup', handlePointerUp);
+            dragEl.removeEventListener('pointercancel', handlePointerUp);
+            
+            // 尋找底下的元素 (拖曳時 dragEl 有 pointer-events: none，所以可以穿透)
+            const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+            
+            const dropZone = dropTarget ? dropTarget.closest('.drop-zone') : null;
+            
+            if (dropZone && !dropZone.classList.contains('filled')) {
+                // 檢查答案
+                const answer = dropZone.dataset.answer;
+                const char = dragEl.dataset.char;
+                
+                if (char === answer) {
+                    // 答對
+                    playSuccessSound();
+                    
+                    // 更新 drop zone
+                    dropZone.textContent = char;
+                    dropZone.classList.add('filled');
+                    
+                    // 隱藏原本的字卡
+                    dragEl.classList.remove('dragging');
+                    dragEl.style.position = '';
+                    dragEl.style.transform = '';
+                    dragEl.classList.add('used');
+                    
+                    filledCount++;
+                    if (filledCount === selectedQuestions[currentRound].缺字.length) {
+                        showMeaning();
+                    }
+                } else {
+                    // 答錯
+                    animateBack();
+                    dragEl.classList.add('error');
+                    setTimeout(() => dragEl.classList.remove('error'), 200);
+                }
+            } else {
+                // 放錯位置或放在已填滿的格子
+                animateBack();
+            }
+            
+            dragEl = null;
+        }
+
+        function animateBack() {
+            if (!dragEl) return;
+            
+            // 動畫返回原位
+            dragEl.style.transition = 'transform 0.2s ease-out, left 0.2s, top 0.2s';
+            dragEl.style.transform = 'translate(0px, 0px)';
+            
+            const currentEl = dragEl; // 避免 dragEl 被覆蓋
+            setTimeout(() => {
+                currentEl.classList.remove('dragging');
+                currentEl.style.position = '';
+                currentEl.style.left = '';
+                currentEl.style.top = '';
+                currentEl.style.width = '';
+                currentEl.style.height = '';
+                currentEl.style.transition = '';
+            }, 200);
+        }
+
+        function showMeaning() {
+            const q = selectedQuestions[currentRound];
+            document.getElementById('meaning-text').textContent = `${q.成語}：${q.意思}`;
+            document.getElementById('meaning-box').style.display = 'block';
+            document.getElementById('next-btn').style.display = 'block';
+        }
+
+        function nextQuestion() {
+            currentRound++;
+            if (currentRound >= 5) {
+                localStorage.setItem('cert_idiom', '1');
+                document.getElementById('game-screen').style.display = 'none';
+                document.getElementById('result-screen').style.display = 'flex';
+            } else {
+                loadQuestion();
+            }
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>

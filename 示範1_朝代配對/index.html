@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>朝代配對</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --gold: #d4af37;
+            --gold-light: #f3e5ab;
+            --red: #8b0000;
+            --red-light: #cc0000;
+            --text-light: #f4f4f4;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Noto Serif TC', serif;
+            background-color: var(--bg-color);
+            color: var(--text-light);
+            background-image: radial-gradient(circle at center, #2a2a2a 0%, #1a1a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .back-btn {
+            position: fixed; top: 12px; left: 15px; z-index: 999;
+            background: rgba(0,0,0,0.6);
+            color: var(--gold-light);
+            border: 1px solid var(--gold);
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: rgba(212,175,55,0.3); }
+
+        h1 {
+            color: var(--gold);
+            text-align: center;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            margin-bottom: 5px;
+        }
+
+        .stats {
+            color: var(--gold-light);
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+
+        .game-container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            gap: 20px;
+            flex-direction: row;
+        }
+
+        .left-panel {
+            flex: 2;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .dynasty-card {
+            background-color: var(--gold-light);
+            border: 3px solid var(--gold);
+            border-radius: 8px;
+            padding: 10px;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 150px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            transition: transform 0.3s;
+        }
+
+        .dynasty-name {
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 2px solid var(--red);
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            color: var(--red);
+        }
+
+        .drop-zone {
+            flex-grow: 1;
+            border: 2px dashed #999;
+            border-radius: 4px;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background-color: rgba(255,255,255,0.5);
+        }
+
+        .drop-zone.drag-over {
+            background-color: rgba(212, 175, 55, 0.3);
+            border-color: var(--red);
+        }
+
+        .right-panel {
+            flex: 1;
+            background-color: rgba(0,0,0,0.6);
+            border: 2px solid var(--red);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .right-panel::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .right-panel::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+        .right-panel::-webkit-scrollbar-thumb {
+            background: var(--red);
+            border-radius: 4px;
+        }
+
+        .event-card {
+            background-color: #2c2c2c;
+            border: 2px solid var(--red);
+            border-radius: 6px;
+            padding: 10px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .event-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(204,0,0,0.4);
+        }
+
+        .event-card:active {
+            cursor: grabbing;
+        }
+
+        .event-icon {
+            font-size: 1.5rem;
+        }
+
+        .event-text {
+            font-size: 1.1rem;
+            color: var(--gold-light);
+        }
+
+        .drop-zone .event-card {
+            padding: 5px;
+            background-color: #1a472a;
+            border-color: #2e8b57;
+            cursor: default;
+        }
+        
+        .drop-zone .event-card:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .drop-zone .event-text {
+            font-size: 0.9rem;
+            color: #e0eee0;
+        }
+        
+        .drop-zone .event-icon {
+            font-size: 1.2rem;
+        }
+
+        @keyframes flashRed {
+            0% { background-color: var(--red-light); transform: translateX(-5px); }
+            25% { transform: translateX(5px); }
+            50% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+            100% { background-color: #2c2c2c; transform: translateX(0); }
+        }
+        .error-flash {
+            animation: flashRed 0.3s;
+        }
+
+        @keyframes flashGold {
+            0% { background-color: white; box-shadow: 0 0 50px var(--gold); }
+            100% { background-color: var(--bg-color); box-shadow: none; }
+        }
+        .victory-flash {
+            animation: flashGold 1s;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: var(--gold-light);
+            border: 5px solid var(--gold);
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            color: #333;
+            box-shadow: 0 0 30px var(--gold);
+        }
+
+        .modal h2 {
+            color: var(--red);
+            font-size: 2.5rem;
+            margin-top: 0;
+        }
+        
+        .modal p {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .btn {
+            background-color: var(--red);
+            color: var(--gold-light);
+            border: none;
+            padding: 10px 25px;
+            font-size: 1.2rem;
+            font-family: inherit;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--red-light);
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                flex-direction: column;
+            }
+            .right-panel {
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                max-height: none;
+                flex-wrap: nowrap;
+                padding-bottom: 15px;
+            }
+            .event-card {
+                flex: 0 0 auto;
+                width: max-content;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <a class="back-btn" href="../大冒險地圖/index.html">← 回到大地圖</a>
+    <h1>朝代配對</h1>
+    <div class="stats">嘗試次數: <span id="attempts">0</span></div>
+
+    <div class="game-container">
+        <div class="left-panel" id="dynasties-container">
+        </div>
+        
+        <div class="right-panel" id="events-container">
+        </div>
+    </div>
+
+    <div class="modal" id="victory-modal">
+        <div class="modal-content">
+            <h2>挑戰成功！</h2>
+            <p>總嘗試次數: <span id="final-attempts"></span></p>
+            <button class="btn" onclick="initGame()">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        const dynasties = [
+            { id: 1, name: "秦" },
+            { id: 2, name: "漢" },
+            { id: 3, name: "唐" },
+            { id: 4, name: "宋" },
+            { id: 5, name: "明" },
+            { id: 6, name: "清" }
+        ];
+
+        const eventsData = [
+            { id: 'e1',  dynasty_id: 1, text: "統一六國",     icon: "⚔️" },
+            { id: 'e2',  dynasty_id: 1, text: "修築萬里長城", icon: "🧱" },
+            { id: 'e3',  dynasty_id: 1, text: "焚書坑儒",     icon: "🔥" },
+            { id: 'e4',  dynasty_id: 2, text: "張騫通西域",   icon: "🐪" },
+            { id: 'e5',  dynasty_id: 2, text: "文景之治",     icon: "📜" },
+            { id: 'e6',  dynasty_id: 2, text: "罷黜百家獨尊儒術", icon: "📖" },
+            { id: 'e7',  dynasty_id: 3, text: "貞觀之治",     icon: "👑" },
+            { id: 'e8',  dynasty_id: 3, text: "安史之亂",     icon: "💥" },
+            { id: 'e9',  dynasty_id: 3, text: "玄奘西行取經", icon: "🧘" },
+            { id: 'e10', dynasty_id: 4, text: "王安石變法",   icon: "📜" },
+            { id: 'e11', dynasty_id: 4, text: "岳飛抗金",     icon: "🗡️" },
+            { id: 'e12', dynasty_id: 5, text: "鄭和下西洋",   icon: "⛵" },
+            { id: 'e13', dynasty_id: 5, text: "永樂大典編成", icon: "📚" },
+            { id: 'e14', dynasty_id: 6, text: "鴉片戰爭",     icon: "💣" },
+            { id: 'e15', dynasty_id: 6, text: "康熙盛世",     icon: "🌅" },
+            { id: 'e16', dynasty_id: 6, text: "辛亥革命終結", icon: "🏛️" }
+        ];
+
+        let attempts = 0;
+        let correctCount = 0;
+        let draggedEvent = null;
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initGame() {
+            attempts = 0;
+            correctCount = 0;
+            document.getElementById('attempts').textContent = attempts;
+            document.getElementById('victory-modal').style.display = 'none';
+            document.body.classList.remove('victory-flash');
+            
+            renderDynasties();
+            renderEvents();
+        }
+
+        function renderDynasties() {
+            const container = document.getElementById('dynasties-container');
+            container.innerHTML = '';
+            
+            dynasties.forEach(dyn => {
+                const card = document.createElement('div');
+                card.className = 'dynasty-card';
+                
+                const name = document.createElement('div');
+                name.className = 'dynasty-name';
+                name.textContent = dyn.name;
+                
+                const dropZone = document.createElement('div');
+                dropZone.className = 'drop-zone';
+                dropZone.dataset.id = dyn.id;
+                
+                dropZone.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    dropZone.classList.add('drag-over');
+                });
+                
+                dropZone.addEventListener('dragleave', e => {
+                    dropZone.classList.remove('drag-over');
+                });
+                
+                dropZone.addEventListener('drop', handleDrop);
+                
+                card.appendChild(name);
+                card.appendChild(dropZone);
+                container.appendChild(card);
+            });
+        }
+
+        function renderEvents() {
+            const container = document.getElementById('events-container');
+            container.innerHTML = '';
+            
+            const shuffledEvents = shuffle([...eventsData]);
+            
+            shuffledEvents.forEach(ev => {
+                const card = createEventCard(ev);
+                container.appendChild(card);
+            });
+        }
+
+        function createEventCard(ev) {
+            const card = document.createElement('div');
+            card.className = 'event-card';
+            card.draggable = true;
+            card.dataset.id = ev.id;
+            card.dataset.dynasty_id = ev.dynasty_id;
+            card.id = 'event-' + ev.id;
+            
+            const icon = document.createElement('div');
+            icon.className = 'event-icon';
+            icon.textContent = ev.icon;
+            
+            const text = document.createElement('div');
+            text.className = 'event-text';
+            text.textContent = ev.text;
+            
+            card.appendChild(icon);
+            card.appendChild(text);
+            
+            card.addEventListener('dragstart', e => {
+                draggedEvent = card;
+                setTimeout(() => card.style.opacity = '0.5', 0);
+            });
+            
+            card.addEventListener('dragend', () => {
+                if(draggedEvent) draggedEvent.style.opacity = '1';
+                draggedEvent = null;
+            });
+            
+            return card;
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            if (!draggedEvent) return;
+            
+            const targetDynastyId = this.dataset.id;
+            const correctDynastyId = draggedEvent.dataset.dynasty_id;
+            
+            attempts++;
+            document.getElementById('attempts').textContent = attempts;
+            
+            if (targetDynastyId === correctDynastyId) {
+                // 正確
+                draggedEvent.draggable = false;
+                draggedEvent.style.opacity = '1';
+                this.appendChild(draggedEvent);
+                correctCount++;
+                draggedEvent = null;
+                
+                if (correctCount === eventsData.length) {
+                    showVictory();
+                }
+            } else {
+                // 錯誤
+                draggedEvent.classList.add('error-flash');
+                setTimeout(() => {
+                    if(draggedEvent) draggedEvent.classList.remove('error-flash');
+                }, 300);
+            }
+        }
+        
+        function showVictory() {
+            localStorage.setItem('cert_dynasty', '1');
+            document.body.classList.add('victory-flash');
+            setTimeout(() => {
+                document.getElementById('final-attempts').textContent = attempts;
+                document.getElementById('victory-modal').style.display = 'flex';
+            }, 800);
+        }
+
+        window.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
