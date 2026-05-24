@@ -95,6 +95,14 @@
             color: var(--red);
         }
 
+        .dynasty-icon {
+            font-size: 2.8rem;
+            text-align: center;
+            line-height: 1.2;
+            margin-bottom: 4px;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+        }
+
         .drop-zone {
             flex-grow: 1;
             border: 2px dashed #999;
@@ -301,12 +309,12 @@
 
     <script>
         const dynasties = [
-            { id: 1, name: "秦" },
-            { id: 2, name: "漢" },
-            { id: 3, name: "唐" },
-            { id: 4, name: "宋" },
-            { id: 5, name: "明" },
-            { id: 6, name: "清" }
+            { id: 1, name: "秦", icon: "🗡️" },
+            { id: 2, name: "漢", icon: "🐪" },
+            { id: 3, name: "唐", icon: "👑" },
+            { id: 4, name: "宋", icon: "📜" },
+            { id: 5, name: "明", icon: "⛵" },
+            { id: 6, name: "清", icon: "🌸" }
         ];
 
         const eventsData = [
@@ -359,6 +367,10 @@
                 const card = document.createElement('div');
                 card.className = 'dynasty-card';
                 
+                const icon = document.createElement('div');
+                icon.className = 'dynasty-icon';
+                icon.textContent = dyn.icon;
+
                 const name = document.createElement('div');
                 name.className = 'dynasty-name';
                 name.textContent = dyn.name;
@@ -378,6 +390,7 @@
                 
                 dropZone.addEventListener('drop', handleDrop);
                 
+                card.appendChild(icon);
                 card.appendChild(name);
                 card.appendChild(dropZone);
                 container.appendChild(card);
